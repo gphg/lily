@@ -23,12 +23,15 @@
 -- Amount of arguments (number)
 -- n-amount of arguments (Variant)
 
+local table, string = table, string
+local require, pairs, select, assert, collectgarbage, type = require, pairs, select, assert, collectgarbage, type
+
 -- Load LOVE module
 local love = require("love")
 require("love.event")
 require("love.data")
 -- Non-thread-safe modules
-local ntsModules = {"graphics", "window"}
+local ntsModules = { "graphics", "window" }
 -- But love.graphics must be treated specially
 local hasGraphics = false
 
@@ -48,8 +51,8 @@ for _, v in pairs(modules) do
 		end
 	end
 
-	if not(f) then
-		require("love."..v)
+	if not (f) then
+		require("love." .. v)
 	end
 end
 
@@ -70,16 +73,17 @@ local function pushData(reqID, v1, v2)
 	local updateMode = getUpdateMode()
 	if updateMode == "automatic" then
 		-- Event push
+		---@diagnostic disable-next-line: param-type-mismatch
 		love.event.push("lily_resp", reqID, v1, v2)
 	elseif updateMode == "manual" then
 		-- Channel push
-		dataPullChannel:push({reqID, v1, v2})
+		dataPullChannel:push({ reqID, v1, v2 })
 	end
 end
 
 -- Macro function to create handler
 local function lilyHandlerFunc(reqtype, minarg, handler)
-	lilyProcessor[reqtype] = {minarg = minarg, handler = handler}
+	lilyProcessor[reqtype] = { minarg = minarg, handler = handler }
 end
 
 
@@ -91,7 +95,7 @@ end
 
 -- Always exist
 if love.data then
-	local function isCompressedData(t)
+	local function isCompressedData(t) -- luacheck: ignore
 		return type(t) == "userdata" and t:typeOf("CompressedData")
 	end
 
@@ -99,7 +103,7 @@ if love.data then
 		return love.data.compress("data", t[1] or "lz4", t[2], t[3])
 	end)
 	lilyHandlerFunc("decompress", 1, function(t)
-		if type(t[2]) == "userdata" and t[2]:typeOf("Data") and love._version < "11.2" then
+		if type(t[2]) == "userdata" and t[2]:typeOf("Data") and love._version --[[@as string]] < "11.2" then
 			-- Prior to LOVE 11.2, love.data.decompress can't decompress
 			-- Data object (not CompressedData) due to bug in the code
 			-- when handling this variant. So, convert it to string before
@@ -116,6 +120,7 @@ if love.filesystem then
 		return assert(love.filesystem.append(t[1], t[2], t[3]))
 	end)
 	lilyHandlerFunc("newFileData", 1, function(t)
+		---@diagnostic disable-next-line: redundant-parameter
 		return assert(love.filesystem.newFileData(t[1], t[2], t[3]))
 	end)
 	lilyHandlerFunc("read", 1, function(t)
@@ -149,9 +154,11 @@ if hasGraphics then
 		if type(t[1]) ~= "table" then
 			local id = t[1]
 			if type(id) ~= "userdata" or id:type() ~= "ImageData" then
+				---@cast id string
 				id = love.image.newImageData(id)
 			end
-			t[1] = {love.image.newCubeFaces(id)}
+			---@diagnostic disable-next-line: undefined-field
+			t[1] = { love.image.newCubeFaces(id) }
 		end
 		for i = 1, 6 do
 			local v = t[1][i]
@@ -229,7 +236,7 @@ while true do
 			-- Call
 			handlerFunc = task.handler
 			handlerArg = argv
-			local result = {xpcall(callHandler, debug.traceback)}
+			local result = { xpcall(callHandler, debug.traceback) }
 			if result[1] == false then
 				-- Error
 				pushData(request[1], errorChannel, string.format("'%s': %s", tasktype, result[2]))
